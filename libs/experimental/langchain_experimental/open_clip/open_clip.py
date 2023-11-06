@@ -1,7 +1,5 @@
 from typing import Any, Dict, List
 
-import numpy as np
-
 from langchain.pydantic_v1 import BaseModel, root_validator
 from langchain.schema.embeddings import Embeddings
 
@@ -43,7 +41,7 @@ class OpenCLIPEmbeddings(BaseModel, Embeddings):
     def embed_query(self, text: str) -> List[float]:
         return self.embed_documents([text])[0]
 
-    def embed_image(self, images: List[np.ndarray]) -> List[List[float]]:
+    def embed_image(self, images: List[List[float]]) -> List[List[float]]:
         try:
             from PIL import Image as _PILImage
         except ImportError:
