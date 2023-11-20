@@ -216,6 +216,11 @@ class BaseLLM(BaseLanguageModel[str], ABC):
                 "Must be a PromptValue, str, or list of BaseMessages."
             )
 
+    @property
+    def _invocation_params(self) -> Dict[str, Any]:
+        """Get the parameters used to invoke the model."""
+        return self.dict()
+
     def invoke(
         self,
         input: LanguageModelInput,
@@ -366,7 +371,7 @@ class BaseLLM(BaseLanguageModel[str], ABC):
         else:
             prompt = self._convert_input(input).to_string()
             config = config or {}
-            params = self.dict()
+            params = self._invocation_params
             params["stop"] = stop
             params = {**params, **kwargs}
             options = {"stop": stop}
@@ -417,7 +422,7 @@ class BaseLLM(BaseLanguageModel[str], ABC):
         else:
             prompt = self._convert_input(input).to_string()
             config = config or {}
-            params = self.dict()
+            params = self._invocation_params
             params["stop"] = stop
             params = {**params, **kwargs}
             options = {"stop": stop}
@@ -623,7 +628,7 @@ class BaseLLM(BaseLanguageModel[str], ABC):
             ] * len(prompts)
             run_name_list = [cast(Optional[str], run_name)] * len(prompts)
 
-        params = self.dict()
+        params = self._invocation_params
         params["stop"] = stop
         options = {"stop": stop}
         (
@@ -787,7 +792,7 @@ class BaseLLM(BaseLanguageModel[str], ABC):
             ] * len(prompts)
             run_name_list = [cast(Optional[str], run_name)] * len(prompts)
 
-        params = self.dict()
+        params = self._invocation_params
         params["stop"] = stop
         options = {"stop": stop}
         (
