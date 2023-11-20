@@ -545,12 +545,15 @@ class VectorStore(ABC):
             None, partial(cls.from_texts, **kwargs), texts, embedding, metadatas
         )
 
-    def _get_retriever_tags(self) -> List[str]:
-        """Get tags for retriever."""
-        tags = [self.__class__.__name__]
+    def _get_retriever_metadata(self) -> Dict[str, Any]:
+        """Get metadata for retriever."""
+        metadata = {"vectorstore_provider": self.__class__.__name__}
         if self.embeddings:
-            tags.append(self.embeddings.__class__.__name__)
-        return tags
+            metadata["embedding_provider"] = self.embeddings.__class__.__name__
+            metadata["embedding_model"] = getattr(
+                self.embeddings, "model", getattr(self.embeddings, "model_name", None)
+            )
+        return metadata
 
     def as_retriever(self, **kwargs: Any) -> VectorStoreRetriever:
         """Return VectorStoreRetriever initialized from this VectorStore.
@@ -606,10 +609,10 @@ class VectorStore(ABC):
                 search_kwargs={'filter': {'paper_title':'GPT-4 Technical Report'}}
             )
         """
-        tags = kwargs.pop("tags", None) or []
-        tags.extend(self._get_retriever_tags())
+        metadata = kwargs.pop("metadata", None) or []
+        metadata = {**self._get_retriever_metadata(), **metadata}
 
-        return VectorStoreRetriever(vectorstore=self, **kwargs, tags=tags)
+        return VectorStoreRetriever(vectorstore=self, **kwargs, metadata=metadata)
 
 
 class VectorStoreRetriever(BaseRetriever):
