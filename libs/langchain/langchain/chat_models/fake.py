@@ -46,7 +46,7 @@ class FakeMessagesListChatModel(BaseChatModel):
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
     ) -> Union[BaseMessage, List[BaseMessage]]:
-        """First try to lookup in queries, else return 'foo' or 'bar'."""
+        """Rotate through responses."""
         response = self.responses[self.i]
         if self.i < len(self.responses) - 1:
             self.i += 1
@@ -61,6 +61,7 @@ class FakeMessagesListChatModel(BaseChatModel):
         run_manager: Union[CallbackManagerForLLMRun, None] = None,
         **kwargs: Any,
     ) -> Iterator[ChatGenerationChunk]:
+        """Rotate through responses."""
         response = self.responses[self.i]
         if self.i < len(self.responses) - 1:
             self.i += 1
@@ -78,6 +79,7 @@ class FakeMessagesListChatModel(BaseChatModel):
         run_manager: Union[AsyncCallbackManagerForLLMRun, None] = None,
         **kwargs: Any,
     ) -> AsyncIterator[ChatGenerationChunk]:
+        """Rotate through responses."""
         response = self.responses[self.i]
         if self.i < len(self.responses) - 1:
             self.i += 1
