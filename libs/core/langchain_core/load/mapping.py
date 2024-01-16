@@ -169,6 +169,35 @@ SERIALIZABLE_MAPPING: Dict[Tuple[str, ...], Tuple[str, ...]] = {
         "regex",
         "RegexParser",
     ),
+    (
+        "langchain",
+        "output_parsers",
+        "openai_functions",
+        "JsonKeyOutputFunctionsParser",
+    ): (
+        "langchain",
+        "output_parsers",
+        "openai_functions",
+        "JsonKeyOutputFunctionsParser",
+    ),
+    ("langchain", "output_parsers", "openai_functions", "JsonOutputFunctionsParser"): (
+        "langchain",
+        "output_parsers",
+        "openai_functions",
+        "JsonOutputFunctionsParser",
+    ),
+    ("langchain", "output_parsers", "openai_tools", "JsonOutputKeyToolsParser"): (
+        "langchain",
+        "output_parsers",
+        "openai_tools",
+        "JsonOutputKeyToolsParser",
+    ),
+    ("langchain", "output_parsers", "openai_tools", "JsonOutputToolsParser"): (
+        "langchain",
+        "output_parsers",
+        "openai_tools",
+        "JsonOutputToolsParser",
+    ),
     ("langchain", "schema", "runnable", "DynamicRunnable"): (
         "langchain_core",
         "runnables",
