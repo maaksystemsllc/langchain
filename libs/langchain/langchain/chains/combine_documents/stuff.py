@@ -89,6 +89,16 @@ def create_stuff_documents_chain(
         | _output_parser
     ).with_config(run_name="stuff_documents_chain")
 
+def _extract_page_number(s:Document)->int:
+    # Use regex to find the page number in the string
+    import re
+    match = re.search(r'page (\d+) of \d+', s.page_content.lower())
+    if match:
+        # If a page number is found, return it as an integer
+        return int(match.group(1))
+    else:
+        # If no page number is found, return a large number to sort this item last
+        return float('inf')
 
 class StuffDocumentsChain(BaseCombineDocumentsChain):
     """Chain that combines documents by stuffing into context.
@@ -225,6 +235,19 @@ class StuffDocumentsChain(BaseCombineDocumentsChain):
         prompt = self.llm_chain.prompt.format(**inputs)
         return self.llm_chain._get_num_tokens(prompt)
 
+    def apply_predict_docs_input(self, partial_doc, **kwargs: Any):
+        inputs = self._get_inputs(partial_doc, **kwargs)
+        # Call predict on the LLM.
+        return self.llm_chain.predict(callbacks=callbacks, **inputs)
+
+    def count_semicolons(self, s):
+        lines = s.split('\n')
+        
+        return (any( set([line.count(';SEN') for line in lines]) ),
+        [line.count(';') for line in lines ])
+
+
+
     def combine_docs(
         self, docs: List[Document], callbacks: Callbacks = None, **kwargs: Any
     ) -> Tuple[str, dict]:
@@ -239,9 +262,31 @@ class StuffDocumentsChain(BaseCombineDocumentsChain):
             The first element returned is the single string output. The second
             element returned is a dictionary of other keys to return.
         """
+        sizedocs = len(docs)
+        predict2 = ''
+        print('sorting by page no')
+        if callbacks and callbacks.metadata.get('sortByPage', True):
+            docs = docs = sorted(docs, key=_extract_page_number)
+        if (not callbacks or callbacks.metadata.get('splitData', True)) and sizedocs>=2:
+            splitEnd = int(sizedocs/2)
+            splitStart = splitEnd
+            docs2 =   docs[splitStart:]
+            docs = docs[:splitEnd]
+            inputs2 = self._get_inputs(docs2, **kwargs)
+            predict2 = self.llm_chain.predict(callbacks=callbacks, **inputs2)
+            hasSENField, c_semi = self.count_semicolons(predict2)
+            if len(set(c_semi))>1 or hasSENField:
+                print('processing in one go')
+                predict2=''
+                docs = docs + docs2
         inputs = self._get_inputs(docs, **kwargs)
         # Call predict on the LLM.
-        return self.llm_chain.predict(callbacks=callbacks, **inputs), {}
+        predict1 = self.llm_chain.predict(callbacks=callbacks, **inputs)
+        predict2 = predict2.strip()
+        if predict2 and predict2.startswith('Answer'):
+            print('halucination answer')
+            predict2=''
+        return predict1.strip() +'\n\n|;|'+predict2, {}
 
     async def acombine_docs(
         self, docs: List[Document], callbacks: Callbacks = None, **kwargs: Any
