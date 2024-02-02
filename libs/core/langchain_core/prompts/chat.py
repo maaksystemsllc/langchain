@@ -37,7 +37,7 @@ from langchain_core.prompts.base import BasePromptTemplate
 from langchain_core.prompts.image import ImagePromptTemplate
 from langchain_core.prompts.prompt import PromptTemplate
 from langchain_core.prompts.string import StringPromptTemplate, get_template_variables
-from langchain_core.pydantic_v1 import Field, root_validator
+from langchain_core.pydantic_v1 import Field, PositiveInt, root_validator
 from langchain_core.utils import get_colored_text
 from langchain_core.utils.interactive_env import is_interactive_env
 
@@ -103,6 +103,9 @@ class MessagesPlaceholder(BaseMessagePromptTemplate):
 
     optional: bool = False
 
+    k: Optional[PositiveInt] = None
+    """Optional maximum on the number of messages to include."""
+
     @classmethod
     def get_lc_namespace(cls) -> List[str]:
         """Get the namespace of the langchain object."""
@@ -136,6 +139,8 @@ class MessagesPlaceholder(BaseMessagePromptTemplate):
                     f"variable {self.variable_name} should be a list of base messages,"
                     f" got {value}"
                 )
+        if self.k:
+            value = value[-self.k * 2 :]
         return value
 
     @property

@@ -509,3 +509,18 @@ def test_messages_placeholder() -> None:
         SystemMessage(content="You are an AI assistant."),
         HumanMessage(content="Hello!"),
     ]
+
+
+def test_messages_placeholder_with_max() -> None:
+    history = [
+        AIMessage(content="1"),
+        AIMessage(content="2"),
+        AIMessage(content="3"),
+    ]
+    prompt = MessagesPlaceholder("history")
+    assert prompt.format_messages(history=history) == history
+    prompt = MessagesPlaceholder("history", k=1)
+    assert prompt.format_messages(history=history) == [
+        AIMessage(content="2"),
+        AIMessage(content="3"),
+    ]
