@@ -93,6 +93,7 @@ elasticsearch = {version = "^8.12.0", optional = true}
 hdbcli = {version = "^2.19.21", optional = true}
 oci = {version = "^2.119.1", optional = true}
 rdflib = {version = "7.0.0", optional = true}
+text-generation = {version = "^0.6.1", optional = true}
 nvidia-riva-client = {version = "^2.14.0", optional = true}
 
 [tool.poetry.group.test]
@@ -259,7 +260,8 @@ extended_testing = [
  "elasticsearch",
  "hdbcli",
  "oci",
- "rdflib"
+ "rdflib",
+ "text-generation",
 ]
 
 [tool.ruff]
