@@ -1,6 +1,6 @@
 import json
 from json import JSONDecodeError
-from typing import List, Union
+from typing import List, Optional, Union
 
 from langchain_core.agents import AgentAction, AgentActionMessageLog, AgentFinish
 from langchain_core.exceptions import OutputParserException
@@ -11,6 +11,7 @@ from langchain_core.messages import (
 from langchain_core.outputs import ChatGeneration, Generation
 
 from langchain.agents.agent import AgentOutputParser
+from langchain.schema.prompt import PromptValue
 
 
 class OpenAIFunctionsAgentOutputParser(AgentOutputParser):
@@ -77,7 +78,11 @@ class OpenAIFunctionsAgentOutputParser(AgentOutputParser):
         )
 
     def parse_result(
-        self, result: List[Generation], *, partial: bool = False
+        self,
+        result: List[Generation],
+        *,
+        prompt: Optional[PromptValue] = None,
+        partial: bool = False,
     ) -> Union[AgentAction, AgentFinish]:
         if not isinstance(result[0], ChatGeneration):
             raise ValueError("This output parser only works on ChatGeneration output")

@@ -1,3 +1,4 @@
+from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import BaseOutputParser
 
 
@@ -21,7 +22,7 @@ class BooleanOutputParser(BaseOutputParser[bool]):
         """
         cleaned_text = text.strip()
         if cleaned_text.upper() not in (self.true_val.upper(), self.false_val.upper()):
-            raise ValueError(
+            raise OutputParserException(
                 f"BooleanOutputParser expected output value to either be "
                 f"{self.true_val} or {self.false_val}. Received {cleaned_text}."
             )

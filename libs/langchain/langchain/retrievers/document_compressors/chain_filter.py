@@ -8,6 +8,7 @@ from langchain_core.prompts import BasePromptTemplate, PromptTemplate
 from langchain.callbacks.manager import Callbacks
 from langchain.chains import LLMChain
 from langchain.output_parsers.boolean import BooleanOutputParser
+from langchain.output_parsers.retry import RetryOutputParser
 from langchain.retrievers.document_compressors.base import BaseDocumentCompressor
 from langchain.retrievers.document_compressors.chain_filter_prompt import (
     prompt_template,
@@ -18,7 +19,7 @@ def _get_default_chain_prompt() -> PromptTemplate:
     return PromptTemplate(
         template=prompt_template,
         input_variables=["question", "context"],
-        output_parser=BooleanOutputParser(),
+        output_parser=None,
     )
 
 
@@ -72,5 +73,10 @@ class LLMChainFilter(BaseDocumentCompressor):
             A LLMChainFilter that uses the given language model.
         """
         _prompt = prompt if prompt is not None else _get_default_chain_prompt()
-        llm_chain = LLMChain(llm=llm, prompt=_prompt)
+        llm_chain_kwargs = {"llm": llm, "prompt": _prompt}
+        if _prompt.output_parser is None:
+            llm_chain_kwargs["output_parser"] = RetryOutputParser.from_llm(
+                llm, BooleanOutputParser()
+            )
+        llm_chain = LLMChain(**llm_chain_kwargs)
         return cls(llm_chain=llm_chain, **kwargs)

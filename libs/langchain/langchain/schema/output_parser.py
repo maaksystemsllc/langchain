@@ -9,7 +9,6 @@ from langchain_core.output_parsers import (
 )
 from langchain_core.output_parsers.base import T
 
-# Backwards compatibility.
 NoOpOutputParser = StrOutputParser
 
 __all__ = [
