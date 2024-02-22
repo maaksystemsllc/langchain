@@ -176,6 +176,12 @@ def _import_edenai() -> Any:
     return EdenAI
 
 
+def _import_erniebot() -> Any:
+    from langchain.llms.erniebot import ErnieBot
+
+    return ErnieBot
+
+
 def _import_fake() -> Any:
     from langchain_community.llms.fake import FakeListLLM
 
@@ -588,6 +594,7 @@ __all__ = [
     "DeepInfra",
     "DeepSparse",
     "EdenAI",
+    "ErnieBot",
     "FakeListLLM",
     "Fireworks",
     "ForefrontAI",
@@ -675,6 +682,7 @@ def get_type_to_cls_dict() -> Dict[str, Callable[[], Type[BaseLLM]]]:
         "deepinfra": _import_deepinfra,
         "deepsparse": _import_deepsparse,
         "edenai": _import_edenai,
+        "erniebot": _import_erniebot,
         "fake-list": _import_fake,
         "forefrontai": _import_forefrontai,
         "giga-chat-model": _import_gigachat,

@@ -1,156 +1,120 @@
-import asyncio
-import logging
-import threading
-from typing import Dict, List, Optional
+import os
+from typing import Any, Dict, List, Optional
 
-import requests
-from langchain_core._api.deprecation import deprecated
 from langchain_core.embeddings import Embeddings
 from langchain_core.pydantic_v1 import BaseModel, root_validator
-from langchain_core.runnables.config import run_in_executor
 from langchain_core.utils import get_from_dict_or_env
 
-logger = logging.getLogger(__name__)
 
-
-@deprecated(
-    since="0.0.13",
-    alternative="langchain_community.embeddings.QianfanEmbeddingsEndpoint",
-)
 class ErnieEmbeddings(BaseModel, Embeddings):
-    """`Ernie Embeddings V1` embedding models."""
+    """ERNIE embedding models.
 
-    ernie_api_base: Optional[str] = None
+    To use, you should have the ``erniebot`` python package installed, and the
+    environment variable ``AISTUDIO_ACCESS_TOKEN`` set with your AI Studio
+    access token.
+
+    Example:
+        .. code-block:: python
+            from langchain_community.embeddings import ErnieEmbeddings
+            ernie_embeddings = ErnieEmbeddings()
+    """
+
+    client: Any = None
+    chunk_size: int = 16
+    """Chunk size to use when the input is a list of texts."""
+    aistudio_access_token: Optional[str] = None
+    """AI Studio access token."""
+    max_retries: int = 6
+    """Maximum number of retries to make when generating."""
+
+    model: str = "ernie-text-embedding"
+    """Model to use."""
+    request_timeout: Optional[int] = 60
+    """How many seconds to wait for the server to send data before giving up."""
+
     ernie_client_id: Optional[str] = None
     ernie_client_secret: Optional[str] = None
-    access_token: Optional[str] = None
-
-    chunk_size: int = 16
-
-    model_name = "ErnieBot-Embedding-V1"
-
-    _lock = threading.Lock()
+    """For raising deprecation warnings."""
 
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
-        values["ernie_api_base"] = get_from_dict_or_env(
-            values, "ernie_api_base", "ERNIE_API_BASE", "https://aip.baidubce.com"
-        )
-        values["ernie_client_id"] = get_from_dict_or_env(
-            values,
-            "ernie_client_id",
-            "ERNIE_CLIENT_ID",
-        )
-        values["ernie_client_secret"] = get_from_dict_or_env(
-            values,
-            "ernie_client_secret",
-            "ERNIE_CLIENT_SECRET",
-        )
+        try:
+            aistudio_access_token = get_from_dict_or_env(
+                values,
+                "aistudio_access_token",
+                "AISTUDIO_ACCESS_TOKEN",
+            )
+        except ValueError as e:
+            if (
+                "ernie_client_id" in values
+                and values["ernie_client_id"]
+                or "ernie_client_secret" in values
+                and values["ernie_client_secret"]
+                or "ERNIE_CLIENT_ID" in os.environ
+                or "ERNIE_CLIENT_SECRET" in os.environ
+            ):
+                raise RuntimeError(
+                    "The authentication parameters "
+                    "`ernie_client_id` and `ernie_client_secret` are deprecated. "
+                    "For AI Studio users, please set "
+                    "`aistudio_access_token` to your AI Studio access token. "
+                    "For Qianfan users, please use "
+                    "`langchain.embeddings.QianfanEmbeddingsEndpoint` instead."
+                ) from e
+            else:
+                raise
+        else:
+            values["aistudio_access_token"] = aistudio_access_token
+
+        try:
+            import erniebot
+
+            values["client"] = erniebot.Embedding
+        except ImportError:
+            raise ImportError(
+                "Could not import erniebot python package."
+                " Please install it with `pip install erniebot`."
+            )
         return values
 
-    def _embedding(self, json: object) -> dict:
-        base_url = (
-            f"{self.ernie_api_base}/rpc/2.0/ai_custom/v1/wenxinworkshop/embeddings"
-        )
-        resp = requests.post(
-            f"{base_url}/embedding-v1",
-            headers={
-                "Content-Type": "application/json",
-            },
-            params={"access_token": self.access_token},
-            json=json,
-        )
-        return resp.json()
+    def embed_query(self, text: str) -> List[float]:
+        resp = self.embed_documents([text])
+        return resp[0]
 
-    def _refresh_access_token_with_lock(self) -> None:
-        with self._lock:
-            logger.debug("Refreshing access token")
-            base_url: str = f"{self.ernie_api_base}/oauth/2.0/token"
-            resp = requests.post(
-                base_url,
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
-                params={
-                    "grant_type": "client_credentials",
-                    "client_id": self.ernie_client_id,
-                    "client_secret": self.ernie_client_secret,
-                },
-            )
-            self.access_token = str(resp.json().get("access_token"))
+    async def aembed_query(self, text: str) -> List[float]:
+        embeddings = await self.aembed_documents([text])
+        return embeddings[0]
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Embed search docs.
-
-        Args:
-            texts: The list of texts to embed
-
-        Returns:
-            List[List[float]]: List of embeddings, one for each text.
-        """
-
-        if not self.access_token:
-            self._refresh_access_token_with_lock()
         text_in_chunks = [
             texts[i : i + self.chunk_size]
             for i in range(0, len(texts), self.chunk_size)
         ]
         lst = []
         for chunk in text_in_chunks:
-            resp = self._embedding({"input": [text for text in chunk]})
-            if resp.get("error_code"):
-                if resp.get("error_code") == 111:
-                    self._refresh_access_token_with_lock()
-                    resp = self._embedding({"input": [text for text in chunk]})
-                else:
-                    raise ValueError(f"Error from Ernie: {resp}")
-            lst.extend([i["embedding"] for i in resp["data"]])
+            resp = self.client.create(
+                _config_={"max_retries": self.max_retries, **self._get_auth_config()},
+                input=chunk,
+                model=self.model,
+            )
+            lst.extend([res["embedding"] for res in resp["data"]])
         return lst
 
-    def embed_query(self, text: str) -> List[float]:
-        """Embed query text.
-
-        Args:
-            text: The text to embed.
-
-        Returns:
-            List[float]: Embeddings for the text.
-        """
-
-        if not self.access_token:
-            self._refresh_access_token_with_lock()
-        resp = self._embedding({"input": [text]})
-        if resp.get("error_code"):
-            if resp.get("error_code") == 111:
-                self._refresh_access_token_with_lock()
-                resp = self._embedding({"input": [text]})
-            else:
-                raise ValueError(f"Error from Ernie: {resp}")
-        return resp["data"][0]["embedding"]
-
-    async def aembed_query(self, text: str) -> List[float]:
-        """Asynchronous Embed query text.
-
-        Args:
-            text: The text to embed.
-
-        Returns:
-            List[float]: Embeddings for the text.
-        """
-
-        return await run_in_executor(None, self.embed_query, text)
-
     async def aembed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Asynchronous Embed search docs.
+        text_in_chunks = [
+            texts[i : i + self.chunk_size]
+            for i in range(0, len(texts), self.chunk_size)
+        ]
+        lst = []
+        for chunk in text_in_chunks:
+            resp = await self.client.acreate(
+                _config_={"max_retries": self.max_retries, **self._get_auth_config()},
+                input=chunk,
+                model=self.model,
+            )
+            for res in resp["data"]:
+                lst.extend([res["embedding"]])
+        return lst
 
-        Args:
-            texts: The list of texts to embed
-
-        Returns:
-            List[List[float]]: List of embeddings, one for each text.
-        """
-
-        result = await asyncio.gather(*[self.aembed_query(text) for text in texts])
-
-        return list(result)
+    def _get_auth_config(self) -> dict:
+        return {"api_type": "aistudio", "access_token": self.aistudio_access_token}
