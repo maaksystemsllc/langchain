@@ -11,6 +11,7 @@ from langchain_community.callbacks.aim_callback import AimCallbackHandler
 from langchain_community.callbacks.argilla_callback import ArgillaCallbackHandler
 from langchain_community.callbacks.arize_callback import ArizeCallbackHandler
 from langchain_community.callbacks.arthur_callback import ArthurCallbackHandler
+from langchain_community.callbacks.bedrock_info import BedrockTokenUsageCallbackHandler
 from langchain_community.callbacks.clearml_callback import ClearMLCallbackHandler
 from langchain_community.callbacks.comet_ml_callback import CometCallbackHandler
 from langchain_community.callbacks.context_callback import ContextCallbackHandler
@@ -23,6 +24,7 @@ from langchain_community.callbacks.labelstudio_callback import (
 )
 from langchain_community.callbacks.llmonitor_callback import LLMonitorCallbackHandler
 from langchain_community.callbacks.manager import (
+    get_bedrock_token_count_callback,
     get_openai_callback,
     wandb_tracing_enabled,
 )
@@ -54,11 +56,13 @@ __all__ = [
     "MlflowCallbackHandler",
     "LLMonitorCallbackHandler",
     "OpenAICallbackHandler",
+    "BedrockTokenUsageCallbackHandler",
     "LLMThoughtLabeler",
     "StreamlitCallbackHandler",
     "WandbCallbackHandler",
     "WhyLabsCallbackHandler",
     "get_openai_callback",
+    "get_bedrock_token_count_callback",
     "wandb_tracing_enabled",
     "FlyteCallbackHandler",
     "SageMakerCallbackHandler",

@@ -10,6 +10,7 @@ from typing import (
 
 from langchain_core.tracers.context import register_configure_hook
 
+from langchain_community.callbacks.bedrock_info import BedrockTokenUsageCallbackHandler
 from langchain_community.callbacks.openai_info import OpenAICallbackHandler
 from langchain_community.callbacks.tracers.comet import CometTracer
 from langchain_community.callbacks.tracers.wandb import WandbTracer
@@ -25,6 +26,9 @@ wandb_tracing_callback_var: ContextVar[Optional[WandbTracer]] = ContextVar(  # n
 comet_tracing_callback_var: ContextVar[Optional[CometTracer]] = ContextVar(  # noqa: E501
     "tracing_comet_callback", default=None
 )
+bedrock_callback_var: ContextVar[
+    Optional[BedrockTokenUsageCallbackHandler]
+] = ContextVar("bedrock_callback", default=None)
 
 register_configure_hook(openai_callback_var, True)
 register_configure_hook(
@@ -33,6 +37,7 @@ register_configure_hook(
 register_configure_hook(
     comet_tracing_callback_var, True, CometTracer, "LANGCHAIN_COMET_TRACING"
 )
+register_configure_hook(bedrock_callback_var, True)
 
 
 @contextmanager
@@ -74,3 +79,23 @@ def wandb_tracing_enabled(
     wandb_tracing_callback_var.set(cb)
     yield None
     wandb_tracing_callback_var.set(None)
+
+
+@contextmanager
+def get_bedrock_token_count_callback() -> (
+    Generator[BedrockTokenUsageCallbackHandler, None, None]
+):
+    """Get the Bedrock callback handler in a context manager.
+    which conveniently exposes token count information.
+
+    Returns:
+        BedrockTokenUsageCallbackHandler: The Bedrock callback handler.
+
+    Example:
+        >>> with get_bedrock_token_count_callback() as cb:
+        ...     # Use the callback handler
+    """
+    cb = BedrockTokenUsageCallbackHandler()
+    bedrock_callback_var.set(cb)
+    yield cb
+    bedrock_callback_var.set(None)

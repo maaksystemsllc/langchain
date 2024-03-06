@@ -2,6 +2,7 @@ import asyncio
 import json
 import warnings
 from abc import ABC
+from collections import defaultdict
 from typing import (
     Any,
     AsyncGenerator,
@@ -17,8 +18,8 @@ from langchain_core.callbacks import (
     AsyncCallbackManagerForLLMRun,
     CallbackManagerForLLMRun,
 )
-from langchain_core.language_models.llms import LLM
-from langchain_core.outputs import GenerationChunk
+from langchain_core.language_models.llms import BaseLLM
+from langchain_core.outputs import Generation, GenerationChunk, LLMResult
 from langchain_core.pydantic_v1 import BaseModel, Extra, Field, root_validator
 from langchain_core.utils import get_from_dict_or_env
 
@@ -412,61 +413,84 @@ class BedrockBase(BaseModel, ABC):
 
     def _prepare_input_and_invoke(
         self,
-        prompt: str,
+        prompts: List[str],
         stop: Optional[List[str]] = None,
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
-    ) -> str:
+    ) -> LLMResult:
         _model_kwargs = self.model_kwargs or {}
+        llm_output = defaultdict(int)
+        generations = []
+        for prompt in prompts:
+            provider = self._get_provider()
+            params = {**_model_kwargs, **kwargs}
+            if self._guardrails_enabled:
+                params.update(self._get_guardrails_canonical())
+            input_body = LLMInputOutputAdapter.prepare_input(provider, prompt, params)
+            body = json.dumps(input_body)
+            accept = "application/json"
+            contentType = "application/json"
 
-        provider = self._get_provider()
-        params = {**_model_kwargs, **kwargs}
-        if self._guardrails_enabled:
-            params.update(self._get_guardrails_canonical())
-        input_body = LLMInputOutputAdapter.prepare_input(provider, prompt, params)
-        body = json.dumps(input_body)
-        accept = "application/json"
-        contentType = "application/json"
+            request_options = {
+                "body": body,
+                "modelId": self.model_id,
+                "accept": accept,
+                "contentType": contentType,
+            }
 
-        request_options = {
-            "body": body,
-            "modelId": self.model_id,
-            "accept": accept,
-            "contentType": contentType,
-        }
+            if self._guardrails_enabled:
+                request_options["guardrail"] = "ENABLED"
+                if self.guardrails.get("trace"):
+                    request_options["trace"] = "ENABLED"
 
-        if self._guardrails_enabled:
-            request_options["guardrail"] = "ENABLED"
-            if self.guardrails.get("trace"):  # type: ignore[union-attr]
-                request_options["trace"] = "ENABLED"
+            try:
+                response = self.client.invoke_model(**request_options)
+                text, body = LLMInputOutputAdapter.prepare_output(
+                    provider, response
+                ).values()
 
-        try:
-            response = self.client.invoke_model(**request_options)
+            except Exception as e:
+                raise ValueError(
+                    f"Error raised by bedrock service: {e}"
+                ).with_traceback(e.__traceback__)
 
-            text, body = LLMInputOutputAdapter.prepare_output(
-                provider, response
-            ).values()
+            if stop is not None:
+                text = enforce_stop_tokens(text, stop)
 
-        except Exception as e:
-            raise ValueError(f"Error raised by bedrock service: {e}")
+            # Verify and raise a callback error if any intervention occurs or
+            # a signal is sent from a Bedrock service,
+            # such as when guardrails are triggered.
+            services_trace = self._get_bedrock_services_signal(body)  # type: ignore[arg-type]
 
-        if stop is not None:
-            text = enforce_stop_tokens(text, stop)
+            if services_trace.get("signal") and run_manager is not None:
+                run_manager.on_llm_error(
+                    Exception(
+                        f"Error raised by \
+                        bedrock service: {services_trace.get('reason')}"
+                    ),
+                    **services_trace,
+                )
 
-        # Verify and raise a callback error if any intervention occurs or a signal is
-        # sent from a Bedrock service,
-        # such as when guardrails are triggered.
-        services_trace = self._get_bedrock_services_signal(body)  # type: ignore[arg-type]
+            generation = Generation(text=text)
+            generations.append(generation)
+            self._update_llm_output(llm_output, response)
 
-        if services_trace.get("signal") and run_manager is not None:
-            run_manager.on_llm_error(
-                Exception(
-                    f"Error raised by bedrock service: {services_trace.get('reason')}"
-                ),
-                **services_trace,
-            )
+        return LLMResult(generations=[generations], llm_output=llm_output)
 
-        return text
+    @classmethod
+    def _update_llm_output(cls, llm_output: Dict, response: Dict) -> None:
+        if response.get("ResponseMetadata") is None:
+            return
+        response_headers = response.get("ResponseMetadata")["HTTPHeaders"]
+        for header in response_headers:
+            if not header.startswith("x-amzn-bedrock"):
+                continue
+            elif header == "x-amzn-bedrock-input-token-count":
+                llm_output["prompt_tokens"] += int(response_headers[header])
+            elif header == "x-amzn-bedrock-output-token-count":
+                llm_output["completion_tokens"] += int(response_headers[header])
+            elif header == "x-amzn-bedrock-invocation-latency":
+                llm_output["invocation_latency"] += int(response_headers[header])
 
     def _get_bedrock_services_signal(self, body: dict) -> dict:
         """
@@ -601,7 +625,7 @@ class BedrockBase(BaseModel, ABC):
                 run_manager.on_llm_new_token(chunk.text, chunk=chunk)  # type: ignore[unused-coroutine]
 
 
-class Bedrock(LLM, BedrockBase):
+class Bedrock(BaseLLM, BedrockBase):
     """Bedrock models.
 
     To authenticate, the AWS client uses the following methods to
@@ -628,6 +652,29 @@ class Bedrock(LLM, BedrockBase):
             )
 
     """
+
+    def _generate(
+        self,
+        prompts: List[str],
+        stop: Optional[List[str]] = None,
+        run_manager: Optional[CallbackManagerForLLMRun] = None,
+        **kwargs: Any,
+    ) -> LLMResult:
+        if self.streaming:
+            if len(prompts) > 1:
+                raise ValueError("Streaming is only supported for a single prompt.")
+            prompt = prompts[0]
+            completion = ""
+            for chunk in self._stream(
+                prompt=prompt, stop=stop, run_manager=run_manager, **kwargs
+            ):
+                completion += chunk.text
+            generations = [Generation(text=completion)]
+            return LLMResult(generations=[generations])
+
+        return self._prepare_input_and_invoke(
+            prompts=prompts, stop=stop, run_manager=run_manager, **kwargs
+        )
 
     @property
     def _llm_type(self) -> str:
