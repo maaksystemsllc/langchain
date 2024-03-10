@@ -41,7 +41,10 @@ from langchain_community.chat_message_histories.neo4j import Neo4jChatMessageHis
 from langchain_community.chat_message_histories.postgres import (
     PostgresChatMessageHistory,
 )
-from langchain_community.chat_message_histories.redis import RedisChatMessageHistory
+from langchain_community.chat_message_histories.redis import (
+    RedisChatMessageHistory,
+    RedisChatMessageHistoryWithTokenLimit,
+)
 from langchain_community.chat_message_histories.rocksetdb import (
     RocksetChatMessageHistory,
 )
@@ -72,6 +75,7 @@ __all__ = [
     "MongoDBChatMessageHistory",
     "PostgresChatMessageHistory",
     "RedisChatMessageHistory",
+    "RedisChatMessageHistoryWithTokenLimit",
     "RocksetChatMessageHistory",
     "SQLChatMessageHistory",
     "StreamlitChatMessageHistory",
