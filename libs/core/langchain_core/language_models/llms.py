@@ -461,17 +461,37 @@ class BaseLLM(BaseLanguageModel[str], ABC):
                 name=config.get("run_name"),
                 batch_size=1,
             )
+            (
+                existing_prompts,
+                llm_string,
+                missing_prompt_idxs,
+                missing_prompts,
+            ) = get_prompts(params, [prompt])
+            disregard_cache = self.cache is not None and not self.cache
+            new_arg_supported = inspect.signature(self._generate).parameters.get(
+                "run_manager"
+            )
+
             generation: Optional[GenerationChunk] = None
             try:
-                async for chunk in self._astream(
-                    prompt, stop=stop, run_manager=run_manager, **kwargs
+                if (
+                    0 not in existing_prompts
+                    or get_llm_cache() is None
+                    or disregard_cache
                 ):
-                    yield chunk.text
-                    if generation is None:
-                        generation = chunk
-                    else:
-                        generation += chunk
-                assert generation is not None
+                    async for chunk in self._astream(
+                        prompt, stop=stop, run_manager=run_manager, **kwargs
+                    ):
+                        yield chunk.text
+                        if generation is None:
+                            generation = chunk
+                        else:
+                            generation += chunk
+                    assert generation is not None
+                else:
+                    generation = GenerationChunk(text=existing_prompts[0][0].text)
+                    yield generation
+
             except BaseException as e:
                 await run_manager.on_llm_error(
                     e,
@@ -481,7 +501,15 @@ class BaseLLM(BaseLanguageModel[str], ABC):
                 )
                 raise e
             else:
-                await run_manager.on_llm_end(LLMResult(generations=[[generation]]))
+                result = LLMResult(generations=[[generation]])
+                update_cache(
+                    existing_prompts=existing_prompts,
+                    llm_string=llm_string,
+                    missing_prompt_idxs=[0],
+                    new_results=result,
+                    prompts=[prompt],
+                )
+                await run_manager.on_llm_end(result)
 
     # --- Custom methods ---
 
