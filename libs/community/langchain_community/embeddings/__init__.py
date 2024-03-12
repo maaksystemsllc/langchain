@@ -11,7 +11,7 @@ from different APIs and services.
 """
 
 
-import logging
+import logging  # NOQA
 from typing import Any
 
 from langchain_community.embeddings.aleph_alpha import (
@@ -48,6 +48,7 @@ from langchain_community.embeddings.huggingface import (
     HuggingFaceEmbeddings,
     HuggingFaceInferenceAPIEmbeddings,
     HuggingFaceInstructEmbeddings,
+    HuggingFaceUaeEmbeddings
 )
 from langchain_community.embeddings.huggingface_hub import HuggingFaceHubEmbeddings
 from langchain_community.embeddings.infinity import InfinityEmbeddings
@@ -155,6 +156,7 @@ __all__ = [
     "JohnSnowLabsEmbeddings",
     "VoyageEmbeddings",
     "BookendEmbeddings",
+    "HuggingFaceUaeEmbeddings",
     "VolcanoEmbeddings",
     "OCIGenAIEmbeddings",
     "QuantizedBiEncoderEmbeddings",
