@@ -1,10 +1,11 @@
 import re
 from collections import defaultdict
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union, cast
 
 from langchain_core.callbacks import (
     CallbackManagerForLLMRun,
 )
+from langchain_core.language_models import LanguageModelInput
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import (
     AIMessage,
@@ -13,8 +14,10 @@ from langchain_core.messages import (
     ChatMessage,
     HumanMessage,
     SystemMessage,
+    get_buffer_string,
 )
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
+from langchain_core.prompt_values import PromptValue, StringPromptValue
 from langchain_core.pydantic_v1 import Extra
 
 from langchain_community.chat_models.anthropic import (
@@ -326,3 +329,19 @@ class BedrockChat(BaseChatModel, BedrockBase):
             return get_token_ids_anthropic(text)
         else:
             return super().get_token_ids(text)
+
+    def _convert_input(self, input: LanguageModelInput) -> PromptValue:
+        if (
+            self._model_is_anthropic
+            and not isinstance(input, str)
+            and isinstance(input, Sequence)
+            and input
+            and isinstance(input[0], BaseMessage)
+        ):
+            return StringPromptValue(
+                text=get_buffer_string(
+                    cast(Sequence[BaseMessage], input), ai_prefix="Assistant"
+                )
+            )
+        else:
+            return super()._convert_input(input)
