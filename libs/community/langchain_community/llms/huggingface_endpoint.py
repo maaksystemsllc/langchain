@@ -326,10 +326,9 @@ class HuggingFaceEndpoint(LLM):
             # yield text, if any
             if text:
                 chunk = GenerationChunk(text=text)
-                yield chunk
                 if run_manager:
                     run_manager.on_llm_new_token(chunk.text)
-
+                yield chunk
             # break if stop sequence found
             if stop_seq_found:
                 break
@@ -361,9 +360,9 @@ class HuggingFaceEndpoint(LLM):
             # yield text, if any
             if text:
                 chunk = GenerationChunk(text=text)
-                yield chunk
                 if run_manager:
                     await run_manager.on_llm_new_token(chunk.text)
+                yield chunk
 
             # break if stop sequence found
             if stop_seq_found:
