@@ -361,6 +361,9 @@ if TYPE_CHECKING:
     from langchain_community.document_loaders.python import (
         PythonLoader,  # noqa: F401
     )
+    from langchain_community.document_loaders.quip import (
+        QuipLoader,  # noqa: F401
+    )
     from langchain_community.document_loaders.readthedocs import (
         ReadTheDocsLoader,  # noqa: F401
     )
@@ -625,6 +628,7 @@ __all__ = [
     "PyPDFium2Loader",
     "PySparkDataFrameLoader",
     "PythonLoader",
+    "QuipLoader",
     "RSSFeedLoader",
     "ReadTheDocsLoader",
     "RecursiveUrlLoader",
@@ -811,6 +815,7 @@ _module_lookup = {
     "PyPDFium2Loader": "langchain_community.document_loaders.pdf",
     "PySparkDataFrameLoader": "langchain_community.document_loaders.pyspark_dataframe",
     "PythonLoader": "langchain_community.document_loaders.python",
+    "QuipLoader": "langchain_community.document_loaders.quip",
     "RSSFeedLoader": "langchain_community.document_loaders.rss",
     "ReadTheDocsLoader": "langchain_community.document_loaders.readthedocs",
     "RecursiveUrlLoader": "langchain_community.document_loaders.recursive_url_loader",
