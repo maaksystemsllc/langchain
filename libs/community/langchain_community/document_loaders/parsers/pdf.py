@@ -5,6 +5,7 @@ import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
+    Dict,
     Iterable,
     Iterator,
     Mapping,
@@ -82,10 +83,17 @@ class PyPDFParser(BaseBlobParser):
     """Load `PDF` using `pypdf`"""
 
     def __init__(
-        self, password: Optional[Union[str, bytes]] = None, extract_images: bool = False
+        self,
+        password: Optional[Union[str, bytes]] = None,
+        extract_images: bool = False,
+        *,
+        extraction_mode: str = "plain",
+        extraction_kwargs: Optional[Dict[str, Any]] = None,
     ):
         self.password = password
         self.extract_images = extract_images
+        self.extraction_mode = extraction_mode
+        self.extraction_kwargs = extraction_kwargs or {}
 
     def lazy_parse(self, blob: Blob) -> Iterator[Document]:  # type: ignore[valid-type]
         """Lazily parse the blob."""
@@ -95,7 +103,9 @@ class PyPDFParser(BaseBlobParser):
             pdf_reader = pypdf.PdfReader(pdf_file_obj, password=self.password)
             yield from [
                 Document(
-                    page_content=page.extract_text()
+                    page_content=page.extract_text(
+                        extraction_mode=self.extraction_mode, **self.extraction_kwargs
+                    )
                     + self._extract_images_from_page(page),
                     metadata={"source": blob.source, "page": page_number},  # type: ignore[attr-defined]
                 )
