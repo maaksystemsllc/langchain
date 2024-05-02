@@ -69,7 +69,7 @@ class BaseConversationalRetrievalChain(Chain):
 
     combine_docs_chain: BaseCombineDocumentsChain
     """The chain used to combine any retrieved documents."""
-    question_generator: LLMChain
+    question_generator: Optional[LLMChain]
     """The chain used to generate a new question for the sake of retrieval.
     This chain will take in the current question (with variable `question`)
     and any chat history (with variable `chat_history`) and will produce
@@ -122,6 +122,27 @@ class BaseConversationalRetrievalChain(Chain):
             _output_keys = _output_keys + ["generated_question"]
         return _output_keys
 
+    @root_validator
+    def validate_combine_docs_chain(cls, values: Dict) -> Dict:
+        question_generator = values.get("question_generator")
+        combine_docs_chain = values.get("combine_docs_chain")
+
+        if (
+            question_generator is None
+            and isinstance(combine_docs_chain, StuffDocumentsChain)
+            and "chat_history"
+            not in combine_docs_chain.llm_chain.prompt.input_variables
+        ):
+            raise ValueError(
+                "If `question_generator` is None, the `chat_history` "
+                "variable is required for the prompt of `combine_docs_chain` "
+                "(StuffDocumentsChain). Please specify your custom prompt for "
+                "`combine_docs_chain` with the `chat_history` variable along "
+                "with the `question` and `context` variables."
+            )
+        else:
+            return values
+
     @abstractmethod
     def _get_docs(
         self,
@@ -142,7 +163,7 @@ class BaseConversationalRetrievalChain(Chain):
         get_chat_history = self.get_chat_history or _get_chat_history
         chat_history_str = get_chat_history(inputs["chat_history"])
 
-        if chat_history_str:
+        if chat_history_str and self.question_generator is not None:
             callbacks = _run_manager.get_child()
             new_question = self.question_generator.run(
                 question=question, chat_history=chat_history_str, callbacks=callbacks
@@ -194,7 +215,7 @@ class BaseConversationalRetrievalChain(Chain):
         question = inputs["question"]
         get_chat_history = self.get_chat_history or _get_chat_history
         chat_history_str = get_chat_history(inputs["chat_history"])
-        if chat_history_str:
+        if chat_history_str and self.question_generator is not None:
             callbacks = _run_manager.get_child()
             new_question = await self.question_generator.arun(
                 question=question, chat_history=chat_history_str, callbacks=callbacks
@@ -313,8 +334,8 @@ class ConversationalRetrievalChain(BaseConversationalRetrievalChain):
             rag_chain.invoke({"input": query, "chat_history": chat_history})
 
     This chain takes in chat history (a list of messages) and new questions,
-    and then returns an answer to that question.
-    The algorithm for this chain consists of three parts:
+    and then returns an answer to that question. If the `question_generator`
+    is specified, the algorithm for this chain consists of three parts :
 
     1. Use the chat history and the new question to create a "standalone question".
     This is done so that this question can be passed into the retrieval step to fetch
@@ -328,6 +349,13 @@ class ConversationalRetrievalChain(BaseConversationalRetrievalChain):
     3. The retrieved documents are passed to an LLM along with either the new question
     (default behavior) or the original question and chat history to generate a final
     response.
+
+    If the `question_generator` is None, the algorithm is as follows:
+
+    1. Use the original question to fetch relevant documents.
+
+    2. The retrieved documents are passed to an LLM along with the original question
+    and chat history to generate a final response.
 
     Example:
         .. code-block:: python
@@ -462,8 +490,8 @@ class ConversationalRetrievalChain(BaseConversationalRetrievalChain):
         )
         return cls(
             retriever=retriever,
-            combine_docs_chain=doc_chain,
             question_generator=condense_question_chain,
+            combine_docs_chain=doc_chain,
             callbacks=callbacks,
             **kwargs,
         )
