@@ -39,6 +39,7 @@ from typing import (
     TypeVar,
 )
 
+from langchain_core.documents import DocumentSearchHit
 from langchain_core.embeddings import Embeddings
 from langchain_core.pydantic_v1 import Field, root_validator
 from langchain_core.retrievers import BaseRetriever
@@ -690,8 +691,17 @@ class VectorStoreRetriever(BaseRetriever):
         return values
 
     def _get_relevant_documents(
-        self, query: str, *, run_manager: CallbackManagerForRetrieverRun
+        self,
+        query: str,
+        *,
+        run_manager: CallbackManagerForRetrieverRun,
+        include_score: bool = False,
     ) -> List[Document]:
+        if include_score and self.search_type != "similarity_score_threshold":
+            raise ValueError(
+                "include_score is only supported "
+                "for search_type=similarity_score_threshold"
+            )
         if self.search_type == "similarity":
             docs = self.vectorstore.similarity_search(query, **self.search_kwargs)
         elif self.search_type == "similarity_score_threshold":
@@ -700,6 +710,15 @@ class VectorStoreRetriever(BaseRetriever):
                     query, **self.search_kwargs
                 )
             )
+            if include_score:
+                return [
+                    DocumentSearchHit(
+                        page_content=doc.page_content,
+                        metadata=doc.metadata,
+                        score=score,
+                    )
+                    for doc, score in docs_and_similarities
+                ]
             docs = [doc for doc, _ in docs_and_similarities]
         elif self.search_type == "mmr":
             docs = self.vectorstore.max_marginal_relevance_search(
@@ -710,8 +729,17 @@ class VectorStoreRetriever(BaseRetriever):
         return docs
 
     async def _aget_relevant_documents(
-        self, query: str, *, run_manager: AsyncCallbackManagerForRetrieverRun
+        self,
+        query: str,
+        *,
+        run_manager: AsyncCallbackManagerForRetrieverRun,
+        include_score: bool = False,
     ) -> List[Document]:
+        if include_score and self.search_type != "similarity_score_threshold":
+            raise ValueError(
+                "include_score is only supported "
+                "for search_type=similarity_score_threshold"
+            )
         if self.search_type == "similarity":
             docs = await self.vectorstore.asimilarity_search(
                 query, **self.search_kwargs
@@ -722,6 +750,15 @@ class VectorStoreRetriever(BaseRetriever):
                     query, **self.search_kwargs
                 )
             )
+            if include_score:
+                return [
+                    DocumentSearchHit(
+                        page_content=doc.page_content,
+                        metadata=doc.metadata,
+                        score=score,
+                    )
+                    for doc, score in docs_and_similarities
+                ]
             docs = [doc for doc, _ in docs_and_similarities]
         elif self.search_type == "mmr":
             docs = await self.vectorstore.amax_marginal_relevance_search(
