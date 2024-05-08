@@ -1,4 +1,5 @@
 """Question answering over a graph."""
+
 from __future__ import annotations
 
 import re
@@ -27,7 +28,7 @@ def extract_cypher(text: str) -> str:
         Cypher code extracted from the text.
     """
     # The pattern to find Cypher code enclosed in triple backticks
-    pattern = r"```(.*?)```"
+    pattern = r"```(?:cypher)?(?:(?:\\n)|(?:\n))?(.*?)(?:(?:\\n)|(?:\n))?```"
 
     # Find all matches in the input text
     matches = re.findall(pattern, text, re.DOTALL)
@@ -86,15 +87,21 @@ class FalkorDBQAChain(Chain):
     @classmethod
     def from_llm(
         cls,
-        llm: BaseLanguageModel,
+        llm: Optional[BaseLanguageModel] = None,
         *,
+        qa_llm: Optional[BaseLanguageModel] = None,
+        cypher_llm: Optional[BaseLanguageModel] = None,
         qa_prompt: BasePromptTemplate = CYPHER_QA_PROMPT,
         cypher_prompt: BasePromptTemplate = CYPHER_GENERATION_PROMPT,
         **kwargs: Any,
     ) -> FalkorDBQAChain:
         """Initialize from LLM."""
-        qa_chain = LLMChain(llm=llm, prompt=qa_prompt)
-        cypher_generation_chain = LLMChain(llm=llm, prompt=cypher_prompt)
+
+        if not llm and (not qa_llm or not cypher_llm):
+            raise ValueError("Either llm or qa_llm and cypher_llm must be provided.")
+
+        qa_chain = LLMChain(llm=qa_llm or llm, prompt=qa_prompt)
+        cypher_generation_chain = LLMChain(llm=cypher_llm or llm, prompt=cypher_prompt)
 
         return cls(
             qa_chain=qa_chain,
@@ -128,21 +135,26 @@ class FalkorDBQAChain(Chain):
 
         intermediate_steps.append({"query": generated_cypher})
 
+        context: List = []
         # Retrieve and limit the number of results
-        context = self.graph.query(generated_cypher)[: self.top_k]
+        output = self.graph.query(generated_cypher)[: self.top_k]
+        for el, row in enumerate(output):
+            for node, value in enumerate(row):
+                context[el][node] = str(value)
+        context_text = str(output).strip()
 
         if self.return_direct:
-            final_result = context
+            final_result = context_text
         else:
             _run_manager.on_text("Full Context:", end="\n", verbose=self.verbose)
             _run_manager.on_text(
-                str(context), color="green", end="\n", verbose=self.verbose
+                context_text, color="green", end="\n", verbose=self.verbose
             )
 
-            intermediate_steps.append({"context": context})
+            intermediate_steps.append({"context": context_text})
 
             result = self.qa_chain(
-                {"question": question, "context": context},
+                {"question": question, "context": context_text},
                 callbacks=callbacks,
             )
             final_result = result[self.qa_chain.output_key]
