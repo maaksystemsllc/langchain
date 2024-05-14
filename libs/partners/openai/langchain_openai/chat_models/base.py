@@ -759,7 +759,7 @@ class BaseChatOpenAI(BaseChatModel):
             **kwargs,
         )
 
-    def bind_tools(
+    def _bind_tools(
         self,
         tools: Sequence[Union[Dict[str, Any], Type[BaseModel], Callable, BaseTool]],
         *,
