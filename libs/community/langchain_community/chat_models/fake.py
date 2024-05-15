@@ -8,14 +8,14 @@ from langchain_core.callbacks import (
     CallbackManagerForLLMRun,
 )
 from langchain_core.language_models.chat_models import BaseChatModel, SimpleChatModel
-from langchain_core.messages import AIMessageChunk, BaseMessage
+from langchain_core.messages import AIMessageChunk, BaseMessage, BaseMessageChunk
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
 
 class FakeMessagesListChatModel(BaseChatModel):
     """Fake ChatModel for testing purposes."""
 
-    responses: Union[List[BaseMessage], List[List[BaseMessage]]]
+    responses: Union[List[Union[BaseMessage, BaseMessageChunk, str]], List[List[Union[BaseMessage, BaseMessageChunk, str]]]]
     sleep: Optional[float] = None
     i: int = 0
 
@@ -70,7 +70,12 @@ class FakeMessagesListChatModel(BaseChatModel):
         for c in response:
             if self.sleep is not None:
                 time.sleep(self.sleep)
-            chunk = c if isinstance(c, AIMessageChunk) else AIMessageChunk(content=c)
+            if isinstance(c, AIMessageChunk):
+                chunk = c
+            elif isinstance(c, str):
+                chunk = AIMessageChunk(content=c)
+            else:
+                raise TypeError(f"Unexpected type for response chunk: {type(c)}")
             yield ChatGenerationChunk(message=chunk)
 
     async def _astream(
@@ -89,7 +94,12 @@ class FakeMessagesListChatModel(BaseChatModel):
         for c in response:
             if self.sleep is not None:
                 await asyncio.sleep(self.sleep)
-            chunk = c if isinstance(c, AIMessageChunk) else AIMessageChunk(content=c)
+            if isinstance(c, AIMessageChunk):
+                chunk = c
+            elif isinstance(c, str):
+                chunk = AIMessageChunk(content=c)
+            else:
+                raise TypeError(f"Unexpected type for response chunk: {type(c)}")
             yield ChatGenerationChunk(message=chunk)
 
 
