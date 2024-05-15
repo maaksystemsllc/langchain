@@ -1,7 +1,7 @@
 """Fake ChatModel for testing purposes."""
 import asyncio
 import time
-from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Union
+from typing import cast, Any, AsyncIterator, Dict, Iterator, List, Optional, Union
 
 from langchain_core.callbacks import (
     AsyncCallbackManagerForLLMRun,
@@ -67,7 +67,12 @@ class FakeMessagesListChatModel(BaseChatModel):
                     raise TypeError(f"Unexpected type in response list: {type(item)}")
         else:
             raise TypeError(f"Unexpected type for response: {type(response)}")
-        return response
+        if isinstance(response, BaseMessage):
+            return response
+        elif isinstance(response, list) and all(isinstance(item, BaseMessage) for item in response):
+            return cast(List[BaseMessage], response)
+        else:
+            raise TypeError("Unexpected type after processing response")
 
     def _stream(
         self,
