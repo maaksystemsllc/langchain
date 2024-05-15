@@ -55,6 +55,18 @@ class FakeMessagesListChatModel(BaseChatModel):
             self.i += 1
         else:
             self.i = 0
+        if isinstance(response, str):
+            response = BaseMessage(content=response)
+        elif isinstance(response, BaseMessage):
+            pass
+        elif isinstance(response, list):
+            for i, item in enumerate(response):
+                if isinstance(item, str):
+                    response[i] = BaseMessage(content=item)
+                elif not isinstance(item, BaseMessage):
+                    raise TypeError(f"Unexpected type in response list: {type(item)}")
+        else:
+            raise TypeError(f"Unexpected type for response: {type(response)}")
         return response
 
     def _stream(
