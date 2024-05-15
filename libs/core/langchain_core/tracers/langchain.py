@@ -1,4 +1,5 @@
 """A Tracer implementation that records to LangChain endpoint."""
+
 from __future__ import annotations
 
 import logging
@@ -62,8 +63,16 @@ def _get_executor() -> ThreadPoolExecutor:
     return _EXECUTOR
 
 
+def _run_to_dict(run: Run) -> dict:
+    return {
+        **run.dict(exclude={"child_runs", "inputs", "outputs"}),
+        "inputs": run.inputs.copy() if run.inputs is not None else None,
+        "outputs": run.outputs.copy() if run.outputs is not None else None,
+    }
+
+
 class LangChainTracer(BaseTracer):
-    """An implementation of the SharedTracer that POSTS to the langchain endpoint."""
+    """Implementation of the SharedTracer that POSTS to the LangChain endpoint."""
 
     def __init__(
         self,
@@ -96,8 +105,6 @@ class LangChainTracer(BaseTracer):
         **kwargs: Any,
     ) -> Run:
         """Start a trace for an LLM run."""
-        parent_run_id_ = str(parent_run_id) if parent_run_id else None
-        execution_order = self._get_execution_order(parent_run_id_)
         start_time = datetime.now(timezone.utc)
         if metadata:
             kwargs.update({"metadata": metadata})
@@ -109,11 +116,9 @@ class LangChainTracer(BaseTracer):
             extra=kwargs,
             events=[{"name": "start", "time": start_time}],
             start_time=start_time,
-            execution_order=execution_order,
-            child_execution_order=execution_order,
             run_type="llm",
             tags=tags,
-            name=name,
+            name=name,  # type: ignore[arg-type]
         )
         self._start_trace(chat_model_run)
         self._on_chat_model_start(chat_model_run)
@@ -150,7 +155,7 @@ class LangChainTracer(BaseTracer):
 
     def _persist_run_single(self, run: Run) -> None:
         """Persist a run."""
-        run_dict = run.dict(exclude={"child_runs"})
+        run_dict = _run_to_dict(run)
         run_dict["tags"] = self._get_tags(run)
         extra = run_dict.get("extra", {})
         extra["runtime"] = get_runtime_environment()
@@ -165,7 +170,7 @@ class LangChainTracer(BaseTracer):
     def _update_run_single(self, run: Run) -> None:
         """Update a run."""
         try:
-            run_dict = run.dict()
+            run_dict = _run_to_dict(run)
             run_dict["tags"] = self._get_tags(run)
             self.client.update_run(run.id, **run_dict)
         except Exception as e:

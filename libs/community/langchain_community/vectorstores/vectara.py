@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SummaryConfig:
-    """
+    """Configuration for summary generation.
+
     is_enabled: True if summary is enabled, False otherwise
     max_results: maximum number of results to summarize
     response_lang: requested language for the summary
@@ -34,7 +35,8 @@ class SummaryConfig:
 
 @dataclass
 class MMRConfig:
-    """
+    """Configuration for Maximal Marginal Relevance (MMR) search.
+
     is_enabled: True if MMR is enabled, False otherwise
     mmr_k: number of results to fetch for MMR, defaults to 50
     diversity_bias: number between 0 and 1 that determines the degree
@@ -53,7 +55,8 @@ class MMRConfig:
 
 @dataclass
 class VectaraQueryConfig:
-    """
+    """Configuration for Vectara query.
+
     k: Number of Documents to return. Defaults to 10.
     lambda_val: lexical match parameter for hybrid search.
     filter Dictionary of argument(s) to filter on metadata. For example a
@@ -308,7 +311,7 @@ class Vectara(VectorStore):
             self._delete_doc(doc_id)
             self._index_doc(doc)
         elif success_str == "E_NO_PERMISSIONS":
-            print(
+            print(  # noqa: T201
                 """No permissions to add document to Vectara. 
                 Check your corpus ID, customer ID and API key"""
             )
@@ -339,9 +342,11 @@ class Vectara(VectorStore):
                 {
                     "query": query,
                     "start": 0,
-                    "numResults": config.mmr_config.mmr_k
-                    if config.mmr_config.is_enabled
-                    else config.k,
+                    "numResults": (
+                        config.mmr_config.mmr_k
+                        if config.mmr_config.is_enabled
+                        else config.k
+                    ),
                     "contextConfig": {
                         "sentencesBefore": config.n_sentence_context,
                         "sentencesAfter": config.n_sentence_context,
@@ -564,7 +569,7 @@ class Vectara(VectorStore):
 
 
 class VectaraRetriever(VectorStoreRetriever):
-    """Retriever class for `Vectara`."""
+    """Retriever for `Vectara`."""
 
     vectorstore: Vectara
     """Vectara vectorstore."""

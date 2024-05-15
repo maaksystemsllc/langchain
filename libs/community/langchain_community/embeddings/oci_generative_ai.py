@@ -8,6 +8,8 @@ CUSTOM_ENDPOINT_PREFIX = "ocid1.generativeaiendpoint"
 
 
 class OCIAuthType(Enum):
+    """OCI authentication types as enumerator."""
+
     API_KEY = 1
     SECURITY_TOKEN = 2
     INSTANCE_PRINCIPAL = 3
@@ -141,7 +143,7 @@ class OCIGenAIEmbeddings(BaseModel, Embeddings):
             )
 
         except ImportError as ex:
-            raise ModuleNotFoundError(
+            raise ImportError(
                 "Could not import oci python package. "
                 "Please make sure you have the oci package installed."
             ) from ex
