@@ -17,7 +17,7 @@ class FakeMessagesListChatModel(BaseChatModel):
 
     responses: Union[
         List[Union[BaseMessage, BaseMessageChunk, str]],
-        List[List[Union[BaseMessage, BaseMessageChunk, str]]]
+        List[List[Union[BaseMessage, BaseMessageChunk, str]]],
     ]
     sleep: Optional[float] = None
     i: int = 0
