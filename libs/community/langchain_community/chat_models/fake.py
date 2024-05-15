@@ -1,7 +1,7 @@
 """Fake ChatModel for testing purposes."""
 import asyncio
 import time
-from typing import cast, Any, AsyncIterator, Dict, Iterator, List, Optional, Union
+from typing import Any, AsyncIterator, Dict, Iterator, List, Optional, Union, cast
 
 from langchain_core.callbacks import (
     AsyncCallbackManagerForLLMRun,
