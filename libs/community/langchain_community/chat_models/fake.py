@@ -15,7 +15,10 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 class FakeMessagesListChatModel(BaseChatModel):
     """Fake ChatModel for testing purposes."""
 
-    responses: Union[List[Union[BaseMessage, BaseMessageChunk, str]], List[List[Union[BaseMessage, BaseMessageChunk, str]]]]
+    responses: Union[
+        List[Union[BaseMessage, BaseMessageChunk, str]],
+        List[List[Union[BaseMessage, BaseMessageChunk, str]]]
+    ]
     sleep: Optional[float] = None
     i: int = 0
 
