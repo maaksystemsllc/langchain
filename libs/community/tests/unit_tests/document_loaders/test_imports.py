@@ -1,6 +1,8 @@
 from langchain_community.document_loaders import __all__, _module_lookup
 
 EXPECTED_ALL = [
+    "AzureWhisperVideoSegmentLoader",
+    "AzureWhisperVideoParagraphLoader",
     "AcreomLoader",
     "AsyncHtmlLoader",
     "AsyncChromiumLoader",
@@ -93,6 +95,8 @@ EXPECTED_ALL = [
     "LLMSherpaFileLoader",
     "LarkSuiteDocLoader",
     "LakeFSLoader",
+    "LocalWhisperVideoSegmentLoader",
+    "LocalWhisperVideoParagraphLoader",
     "MHTMLLoader",
     "MWDumpLoader",
     "MastodonTootsLoader",
@@ -111,6 +115,8 @@ EXPECTED_ALL = [
     "OneDriveFileLoader",
     "OneDriveLoader",
     "OnlinePDFLoader",
+    "OpenAIWhisperVideoSegmentLoader",
+    "OpenAIWhisperVideoParagraphLoader",
     "OpenCityDataLoader",
     "OracleAutonomousDatabaseLoader",
     "OracleDocLoader",
