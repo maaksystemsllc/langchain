@@ -76,6 +76,7 @@ _EXPECTED = [
     "Tair",
     "TiDBVectorStore",
     "TileDB",
+    "TigerGraphVector",
     "Tigris",
     "TimescaleVector",
     "Typesense",

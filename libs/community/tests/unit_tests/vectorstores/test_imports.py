@@ -82,6 +82,7 @@ EXPECTED_ALL = [
     "Tair",
     "TencentVectorDB",
     "TiDBVectorStore",
+    "TigerGraphVector",
     "Tigris",
     "TileDB",
     "TimescaleVector",
