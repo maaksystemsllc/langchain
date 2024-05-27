@@ -132,7 +132,10 @@ class WebBaseLoader(BaseLoader):
                         url,
                         headers=self.session.headers,
                         ssl=None if self.session.verify else False,
+                        cookies=self.session.cookies.get_dict(),
                     ) as response:
+                        if self.raise_for_status:
+                            response.raise_for_status()
                         return await response.text()
                 except aiohttp.ClientConnectionError as e:
                     if i == retries - 1:
@@ -250,11 +253,7 @@ class WebBaseLoader(BaseLoader):
             metadata = _build_metadata(soup, path)
             yield Document(page_content=text, metadata=metadata)
 
-    def load(self) -> List[Document]:
-        """Load text from the url(s) in web_path."""
-        return list(self.lazy_load())
-
-    def aload(self) -> List[Document]:
+    def aload(self) -> List[Document]:  # type: ignore
         """Load text from the urls in web_path async into Documents."""
 
         results = self.scrape_all(self.web_paths)

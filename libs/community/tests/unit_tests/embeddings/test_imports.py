@@ -1,8 +1,11 @@
-from langchain_community.embeddings import __all__
+from langchain_community.embeddings import __all__, _module_lookup
 
 EXPECTED_ALL = [
+    "ClovaEmbeddings",
     "OpenAIEmbeddings",
+    "AnyscaleEmbeddings",
     "AzureOpenAIEmbeddings",
+    "BaichuanTextEmbeddings",
     "ClarifaiEmbeddings",
     "CohereEmbeddings",
     "DatabricksEmbeddings",
@@ -11,9 +14,12 @@ EXPECTED_ALL = [
     "HuggingFaceEmbeddings",
     "HuggingFaceInferenceAPIEmbeddings",
     "InfinityEmbeddings",
+    "InfinityEmbeddingsLocal",
     "GradientEmbeddings",
     "JinaEmbeddings",
+    "LaserEmbeddings",
     "LlamaCppEmbeddings",
+    "LlamafileEmbeddings",
     "LLMRailsEmbeddings",
     "HuggingFaceHubEmbeddings",
     "MlflowAIGatewayEmbeddings",
@@ -44,6 +50,7 @@ EXPECTED_ALL = [
     "SpacyEmbeddings",
     "NLPCloudEmbeddings",
     "GPT4AllEmbeddings",
+    "GigaChatEmbeddings",
     "XinferenceEmbeddings",
     "LocalAIEmbeddings",
     "AwaEmbeddings",
@@ -51,13 +58,27 @@ EXPECTED_ALL = [
     "ErnieEmbeddings",
     "JavelinAIGatewayEmbeddings",
     "OllamaEmbeddings",
+    "OracleEmbeddings",
     "QianfanEmbeddingsEndpoint",
     "JohnSnowLabsEmbeddings",
     "VoyageEmbeddings",
     "BookendEmbeddings",
     "VolcanoEmbeddings",
+    "OCIGenAIEmbeddings",
+    "QuantizedBiEncoderEmbeddings",
+    "NeMoEmbeddings",
+    "SparkLLMTextEmbeddings",
+    "SambaStudioEmbeddings",
+    "TitanTakeoffEmbed",
+    "QuantizedBgeEmbeddings",
+    "PremAIEmbeddings",
+    "YandexGPTEmbeddings",
+    "OpenVINOEmbeddings",
+    "OpenVINOBgeEmbeddings",
+    "SolarEmbeddings",
 ]
 
 
 def test_all_imports() -> None:
     assert set(__all__) == set(EXPECTED_ALL)
+    assert set(__all__) == set(_module_lookup.keys())
