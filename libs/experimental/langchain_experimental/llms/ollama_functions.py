@@ -339,7 +339,10 @@ class OllamaFunctions(ChatOllama):
             )
 
         response_message_with_functions = AIMessage(
-            content="",
+            # fill raw response into content instead of leaving it empty
+            # since ChatOllama doesn't include additional_kwargs
+            # when the AIMessage is sent to LLMs
+            content=response_message,
             additional_kwargs={
                 "function_call": {
                     "name": called_tool_name,
