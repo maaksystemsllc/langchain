@@ -4,6 +4,7 @@ import requests
 from langchain_core.embeddings import Embeddings
 from langchain_core.pydantic_v1 import BaseModel, SecretStr, root_validator
 from langchain_core.utils import convert_to_secret_str, get_from_dict_or_env
+from requests import RequestException
 
 BAICHUAN_API_URL: str = "http://api.baichuan-ai.com/v1/embeddings"
 
@@ -69,6 +70,8 @@ class BaichuanTextEmbeddings(BaseModel, Embeddings):
             response = self.session.post(
                 BAICHUAN_API_URL, json={"input": texts, "model": self.model_name}
             )
+            # Raise exception if response status code from 400 to 600
+            response.raise_for_status()
             # Check if the response status code indicates success
             if response.status_code == 200:
                 resp = response.json()
@@ -79,15 +82,14 @@ class BaichuanTextEmbeddings(BaseModel, Embeddings):
                 return [result.get("embedding", []) for result in sorted_embeddings]
             else:
                 # Log error or handle unsuccessful response appropriately
-                print(  # noqa: T201
+                # Handle 100 <= status_code < 400, not include 200
+                raise RequestException(
                     f"Error: Received status code {response.status_code} from "
-                    "embedding API"
+                    "`BaichuanEmbedding` API"
                 )
-                return None
-        except Exception as e:
+        except Exception:
             # Log the exception or handle it as needed
-            print(f"Exception occurred while trying to get embeddings: {str(e)}")  # noqa: T201
-            return None
+            raise
 
     def embed_documents(self, texts: List[str]) -> Optional[List[List[float]]]:  # type: ignore[override]
         """Public method to get embeddings for a list of documents.
