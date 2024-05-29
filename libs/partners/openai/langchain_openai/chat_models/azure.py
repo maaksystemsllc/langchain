@@ -95,6 +95,10 @@ class AzureChatOpenAI(BaseChatOpenAI):
     """For backwards compatibility. If legacy val openai_api_base is passed in, try to 
         infer if it is a base_url or azure_endpoint and update accordingly.
     """
+    ignore_openai_api_base: bool = False
+    """For when conflicting packages require `openai_base_url` env var. Setting it,
+        to True will set `openai_api_base` to None if it is found in env vars.
+    """
 
     @classmethod
     def get_lc_namespace(cls) -> List[str]:
@@ -134,6 +138,11 @@ class AzureChatOpenAI(BaseChatOpenAI):
         values["openai_api_base"] = values["openai_api_base"] or os.getenv(
             "OPENAI_API_BASE"
         )
+        if values["ignore_openai_api_base"] and values["openai_api_base"]:
+            logger.warning(
+                "Ignoring openai_api_base because ignore_openai_api_base is set."
+            )
+            values["openai_api_base"] = None
         values["openai_api_version"] = values["openai_api_version"] or os.getenv(
             "OPENAI_API_VERSION"
         )
@@ -166,6 +175,9 @@ class AzureChatOpenAI(BaseChatOpenAI):
                     "As of openai>=1.0.0, Azure endpoints should be specified via "
                     "the `azure_endpoint` param not `openai_api_base` "
                     "(or alias `base_url`)."
+                    "If you are using a separate package that also requires "
+                    "a `base_url` env, you can use the `ignore_openai_api_base` "
+                    "parameter of this class to bypass this check."
                 )
             if values["deployment_name"]:
                 raise ValueError(
