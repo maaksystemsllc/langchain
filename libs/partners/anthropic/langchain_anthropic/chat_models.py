@@ -43,6 +43,7 @@ from langchain_core.messages import (
     ToolCall,
     ToolMessage,
 )
+from langchain_core.messages.ai import UsageMetadata
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.pydantic_v1 import BaseModel, Field, SecretStr, root_validator
 from langchain_core.runnables import (
@@ -426,14 +427,50 @@ class ChatAnthropic(BaseChatModel):
                 message_chunk = AIMessageChunk(
                     content=message.content,
                     tool_call_chunks=tool_call_chunks,
+                    usage_metadata=message.usage_metadata,
                 )
                 yield ChatGenerationChunk(message=message_chunk)
             else:
                 yield cast(ChatGenerationChunk, result.generations[0])
             return
+        full_generation_info = {}
         with self._client.messages.stream(**params) as stream:
             for text in stream.text_stream:
-                chunk = ChatGenerationChunk(message=AIMessageChunk(content=text))
+                generation_info = {}
+                usage_metadata: Optional[UsageMetadata] = None
+                for k, v in stream.current_message_snapshot.model_dump().items():
+                    if k in ("content", "role", "type") or (
+                        k in full_generation_info and k not in ("usage", "stop_reason")
+                    ):
+                        continue
+                    elif k == "usage":
+                        input_tokens = v.get("input_tokens", 0)
+                        output_tokens = v.get("output_tokens", 0)
+                        if k not in full_generation_info:
+                            full_generation_info[k] = v
+                            usage_metadata = UsageMetadata(
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                total_tokens=input_tokens + output_tokens,
+                            )
+                        else:
+                            full_generation_info[k]["output_tokens"] += output_tokens
+                            seen_input_tokens = full_generation_info[k].get(
+                                "input_tokens", 0
+                            )
+                            new_input_tokens = 0 if seen_input_tokens else input_tokens
+                            usage_metadata = UsageMetadata(
+                                input_tokens=new_input_tokens,
+                                output_tokens=output_tokens,
+                                total_tokens=new_input_tokens + output_tokens,
+                            )
+                    else:
+                        full_generation_info[k] = v
+                        generation_info[k] = v
+                chunk = ChatGenerationChunk(
+                    message=AIMessageChunk(content=text, usage_metadata=usage_metadata),
+                    generation_info=generation_info,
+                )
                 if run_manager:
                     run_manager.on_llm_new_token(text, chunk=chunk)
                 yield chunk
@@ -465,14 +502,50 @@ class ChatAnthropic(BaseChatModel):
                 message_chunk = AIMessageChunk(
                     content=message.content,
                     tool_call_chunks=tool_call_chunks,
+                    usage_metadata=message.usage_metadata,
                 )
                 yield ChatGenerationChunk(message=message_chunk)
             else:
                 yield cast(ChatGenerationChunk, result.generations[0])
             return
+        full_generation_info = {}
         async with self._async_client.messages.stream(**params) as stream:
             async for text in stream.text_stream:
-                chunk = ChatGenerationChunk(message=AIMessageChunk(content=text))
+                generation_info = {}
+                usage_metadata: Optional[UsageMetadata] = None
+                for k, v in stream.current_message_snapshot.model_dump().items():
+                    if k in ("content", "role", "type") or (
+                        k in full_generation_info and k not in ("usage", "stop_reason")
+                    ):
+                        continue
+                    elif k == "usage":
+                        input_tokens = v.get("input_tokens", 0)
+                        output_tokens = v.get("output_tokens", 0)
+                        if k not in full_generation_info:
+                            full_generation_info[k] = v
+                            usage_metadata = UsageMetadata(
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                total_tokens=input_tokens + output_tokens,
+                            )
+                        else:
+                            full_generation_info[k]["output_tokens"] += output_tokens
+                            seen_input_tokens = full_generation_info[k].get(
+                                "input_tokens", 0
+                            )
+                            new_input_tokens = 0 if seen_input_tokens else input_tokens
+                            usage_metadata = UsageMetadata(
+                                input_tokens=new_input_tokens,
+                                output_tokens=output_tokens,
+                                total_tokens=new_input_tokens + output_tokens,
+                            )
+                    else:
+                        full_generation_info[k] = v
+                        generation_info[k] = v
+                chunk = ChatGenerationChunk(
+                    message=AIMessageChunk(content=text, usage_metadata=usage_metadata),
+                    generation_info=generation_info,
+                )
                 if run_manager:
                     await run_manager.on_llm_new_token(text, chunk=chunk)
                 yield chunk
