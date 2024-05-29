@@ -95,9 +95,33 @@ def merge_content(
         else:
             return_list: List[Union[str, Dict]] = [first_content]
             return return_list + second_content
-    # If both are lists, merge them naively
     elif isinstance(second_content, List):
-        return first_content + second_content
+        # If both are lists
+        final_content = first_content.copy()
+        for part in second_content:
+            # If not all parts in second chunk are dicts, unclear what to do,
+            # so just return naive merge
+            if not isinstance(part, Dict):
+                return first_content + second_content
+            part_index = part.get("index")
+            if isinstance(part_index, int) and part_index >= 0:
+                if part_index > len(final_content) - 1:
+                    final_content.extend([None] * (part_index - len(final_content) + 1))
+                if final_content[part_index] is None:
+                    final_content[part_index] = part
+                elif isinstance(final_content[part_index], Dict):
+                    final_content[part_index] = merge_dicts(
+                        final_content[part_index], part
+                    )
+                else:
+                    # Unclear what to do if first part is a string and second is a dict,
+                    # so merge naively
+                    return first_content + second_content
+            # If not all parts in second chunk have an index field
+            # just return naive merge
+            else:
+                return first_content + second_content
+        return final_content
     # If the first content is a list, and the second content is a string
     else:
         # If the last element of the first content is a string
